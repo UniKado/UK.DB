@@ -58,10 +58,10 @@ e.g. for an dynamic table name part or something else…
 
 Placeholders inside the SQL query string must:
 
-* start and end with the single percent symbol `%`
+* start with an open curly bracket, followed by the Dollar symbol `{$` and end with the closing curly bracket `}`
 * be defined by the 2 parts placeholder-name and default value, separated by the equal sign `=`
 
-The default value is already used if no Query-Var is defined.
+The default value is already used if no Query-Var is defined by PHP code.
 
 If no default value should be used the equal sign is mandatory but it throws an exception
 if no replacement value is declared!
