@@ -751,7 +751,7 @@ class Connection extends \PDO
    private function parseQueryVars( string $sql, array $queryVars ) : string
    {
 
-      if ( \count( $queryVars ) < 1 ) { return $sql; }
+      if ( \count( $queryVars ) < 1 && ! $this->parseQueryVarsAlways ) { return $sql; }
 
       return \preg_replace_callback(
          '~\\{\\$([A-Za-z0-9_.-]+)((\s*=)([A-Za-z0-9 \t?_:.<=>-]+)?)?\\}~',
