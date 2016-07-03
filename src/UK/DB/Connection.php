@@ -6,7 +6,7 @@
  * @copyright  (c) 2016, UniKado
  * @package        UK\DB
  * @since          2016-06-27
- * @version        0.1.0
+ * @version        0.1.1
  */
 
 
@@ -38,6 +38,88 @@ namespace UK\DB;
  * $name = $pdo->fetchScalar( 'SELECT user_id FROM udos_user where user_name = ?', [ 'Administrator' ] );
  * var_dump( $name );
  * </code>
+ *
+ * Introducing Query-Vars - v0.1.1 (Pre prepared statements)
+ *
+ * <b>Query-Vars</b> are key-value pairs, used to replace some placeholders inside an SQL query string
+ * with the associated string values.
+ *
+ * Its like the regular known prepared statements but usable for query parts where prepared statements will not work.
+ * e.g. for an dynamic table name part or something else…
+ *
+ * <b>Placeholder format restrictions</b>
+ *
+ * Placeholders inside the SQL query string must:
+ *
+ * - start with an open curly bracket, followed by the Dollar symbol `{$` and end with the closing curly bracket `}`
+ * - be defined by the 2 parts placeholder-name and default value, separated by the equal sign `=`
+ *
+ * The default value is already used if no Query-Var is defined by PHP code.
+ *
+ * If no default value should be used the equal sign is mandatory but it throws an exception
+ * if no replacement value is declared!
+ *
+ * <code>
+ * %PlaceholderName=DefaultValue%
+ * </code>
+ *
+ * or 2 variants without an default value
+ *
+ * <code>
+ * %PlaceholderName=%
+ *
+ * %PlaceholderName%
+ * <code>
+ *
+ * <b>Value format restrictions</b>
+ *
+ * - An Query-Vars value must be an string (not null or something else)
+ * - It should not contain two following dashes `--`
+ * - Accepted chars are: `A-Za-z0-9 \t?_:.<=>-`
+ *
+ * For example:
+ *
+ * If you want to use the following SQL
+ *
+ * <code>
+ * SELECT
+ *       foo,
+ *       bar
+ *    FROM
+ *       my_table
+ *    WHERE
+ *       foo > ?
+ *    ORDER BY
+ *       foo ASC
+ * <code>
+ *
+ * but the order direction part should be dynamic, you can use
+ *
+ * <code>
+ * SELECT
+ *       foo,
+ *       bar
+ *    FROM
+ *       my_table
+ *    WHERE
+ *       foo > ?
+ *    ORDER BY
+ *       foo {$ORDER_DIRECTION=ASC}
+ * <code>
+ *
+ * Example to call this SQL command
+ *
+ * <code>
+ * $records = $connectionInstance->fetchAll(
+ *    // The SQL query string
+ *    'SELECT foo, bar FROM my_table WHERE foo > ? ORDER BY foo {$ORDER_DIRECTION=ASC}',
+ *    // Prepared statement parameters
+ *    [ 0 ],
+ *    \PDO::FETCH_ASSOC
+ *    // The query vars
+ *    [ 'ORDER_DIRECTION' => 'DESC' ]
+ * );
+ * <code>
  *
  * @since v0.1
  */
@@ -187,9 +269,13 @@ class Connection extends \PDO
     * @param  string  $sql        The SQL statement to use.
     * @param  array   $bindParams Optional binding params for prepared statements (default=array())
     * @param  integer $fetchStyle The fetch style (default=\PDO::FETCH_ASSOC)
+    * @param  array   $queryVars  Pre prepared statement Query-Vars bind values. (since v0.1.1)
     * @return array|FALSE
+    * @throws \PDOException
+    * @throws \UK\DB\QueryException
     */
-   public function fetchRecord( string $sql, array $bindParams = [], int $fetchStyle = \PDO::FETCH_ASSOC )
+   public function fetchRecord(
+      string $sql, array $bindParams = [], int $fetchStyle = \PDO::FETCH_ASSOC, array $queryVars = [] )
    {
 
       if ( ! \preg_match( '~\s+LIMIT\s\d+~i', $sql ) )
@@ -199,13 +285,14 @@ class Connection extends \PDO
 
       if ( \count( $bindParams ) > 0 )
       {
-         $stm = $this->prepare( $sql );
+         $stm = $this->prepare( $this->parseQueryVars( $sql, $queryVars ) );
          $stm->execute( $bindParams );
          $rows = $stm->fetchAll( $fetchStyle );
       }
       else
       {
-         $rows = $this->query( $sql )->fetchAll( $fetchStyle );
+         $rows = $this->query( $this->parseQueryVars( $sql, $queryVars ) )
+                      ->fetchAll( $fetchStyle );
       }
 
       if ( ! \is_array( $rows ) || \count( $rows ) < 1 )
@@ -223,12 +310,15 @@ class Connection extends \PDO
     * @param  string  $sql        The SQL statement to use.
     * @param  array   $bindParams Optional binding params for prepared statements (default=array())
     * @param  mixed   $defaultValue THis value is returned if no record was found by the query.
+    * @param  array   $queryVars  Pre prepared statement Query-Vars bind values. (since v0.1.1)
     * @return mixed
+    * @throws \PDOException
+    * @throws \UK\DB\QueryException
     */
-   public function fetchScalar( string $sql, array $bindParams = [], $defaultValue = false )
+   public function fetchScalar( string $sql, array $bindParams = [], $defaultValue = false, array $queryVars = [] )
    {
 
-      if ( false === ( $row = $this->fetchRecord( $sql, $bindParams, \PDO::FETCH_NUM ) ) )
+      if ( false === ( $row = $this->fetchRecord( $sql, $bindParams, \PDO::FETCH_NUM, $queryVars ) ) )
       {
          return $defaultValue;
       }
@@ -252,20 +342,24 @@ class Connection extends \PDO
     * @param  string  $sql        The SQL statement to use.
     * @param  array   $bindParams Optional binding params for prepared statements (default=array())
     * @param  integer $fetchStyle The fetch style (default=\PDO::FETCH_ASSOC)
+    * @param  array   $queryVars  Pre prepared statement Query-Vars bind values. (since v0.1.1)
     * @return array|FALSE
+    * @throws \PDOException
+    * @throws \UK\DB\QueryException
     */
-   public function fetchAll( string $sql, array $bindParams = [], int $fetchStyle = \PDO::FETCH_ASSOC )
+   public function fetchAll(
+      string $sql, array $bindParams = [], int $fetchStyle = \PDO::FETCH_ASSOC, array $queryVars = [] )
    {
 
       if ( \count( $bindParams ) > 0 )
       {
-         $stm = $this->prepare( $sql );
+         $stm = $this->prepare( $this->parseQueryVars( $sql, $queryVars ) );
          $stm->execute( $bindParams );
          $rows = $stm->fetchAll( $fetchStyle );
       }
       else
       {
-         $rows = $this->query( $sql )->fetchAll( $fetchStyle );
+         $rows = $this->query( $this->parseQueryVars( $sql, $queryVars ) )->fetchAll( $fetchStyle );
       }
 
       if ( ! \is_array( $rows ) || \count( $rows ) < 1 )
@@ -319,14 +413,17 @@ class Connection extends \PDO
     *
     * @param  string $sql
     * @param  array  $bindParams
+    * @param  array  $queryVars  Pre prepared statement Query-Vars bind values. (since v0.1.1)
     * @return bool
     * @throws \UK\DB\QueryException
+    * @throws \PDOException
+    * @throws \UK\DB\QueryException
     */
-   public function execute( string $sql, array $bindParams )
+   public function execute( string $sql, array $bindParams = [], array $queryVars = [] )
    {
       try
       {
-         $stmt = $this->prepare( $sql );
+         $stmt = $this->prepare( $this->parseQueryVars( $sql, $queryVars ) );
          return $stmt->execute( $bindParams );
       }
       catch ( \Exception $ex )
@@ -599,6 +696,57 @@ class Connection extends \PDO
       }
 
       return " WHERE {$whereStr}";
+
+   }
+
+   /**
+    * …
+    *
+    * @param  string $sql
+    * @param  array $queryVars
+    * @return string
+    * @since  v0.1.1
+    */
+   private function parseQueryVars( string $sql, array $queryVars ) : string
+   {
+
+      if ( \count( $queryVars ) < 1 ) { return $sql; }
+
+      return \preg_replace_callback(
+         '~\\{\\$([A-Za-z0-9_.-]+)((\s*=)([A-Za-z0-9 \t?_:.<=>-]+)?)?\\}~',
+         function( $m ) use ( $queryVars, $sql )
+         {
+            $defaultValue = null;
+            if ( ! empty( $m[ 4 ] ) )
+            {
+               $defaultValue = \trim( $m[ 4 ] );
+            }
+            if ( isset( $queryVars[ $m[ 1 ] ] ) )
+            {
+               if ( false !== \strpos( $queryVars[ $m[ 1 ] ], '--' ) ||
+                    ! \preg_match( '~^[A-Za-z0-9 \t?_:.<=>-]+$~', $queryVars[ $m[ 1 ] ] ) )
+               {
+                  throw new \UK\DB\QueryException(
+                     $this->properties,
+                     $sql,
+                     'The defined query variable "' . $m[ 1 ] . '" defines an value with invalid format!'
+                  );
+               }
+               return $queryVars[ $m[ 1 ] ];
+            }
+            if ( \is_null( $defaultValue ) )
+            {
+               throw new \UK\DB\QueryException(
+                  $this->properties,
+                  $sql,
+                  'The query declares an query variable placeholder "' . $m[ 1 ] .
+                  '" without default value and without and assigned replacement value!'
+               );
+            }
+            return $defaultValue;
+         },
+         $sql
+      );
 
    }
 
