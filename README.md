@@ -40,9 +40,17 @@ catch ( \Exception $ex )
 
 ## Version history
 
-### v0.1
+### 0.1.2
 
-This is the initial first commit.
+#### Fixing [first issue #1](https://github.com/UniKado/UK.DB/issues/1)
+
+This adds 2 new methods to [\UK\DB\Connection](https://github.com/UniKado/UK.DB/blob/master/src/UK/DB/Connection.php)
+
+* [\UK\DB\Connection::getParseQueryVarsAlways() : bool](https://github.com/UniKado/UK.DB/blob/master/src/UK/DB/Connection.php#LC546)
+* [\UK\DB\Connection::setParseQueryVarsAlways( bool $value )](https://github.com/UniKado/UK.DB/blob/master/src/UK/DB/Connection.php#LC562)
+
+The methods let you set or get a flag that declares if the parsing of used SQL query string for defined Query-Vars should
+be executed always. Otherwise it will only be parsed if there are some Query-Vars defined.
 
 ### 0.1.1
 
@@ -127,3 +135,7 @@ $records = $connectionInstance->fetchAll(
    [ 'ORDER_DIRECTION' => 'DESC' ]
 );
 ```
+
+### v0.1
+
+This is the initial first commit.

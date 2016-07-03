@@ -140,6 +140,12 @@ class Connection extends \PDO
       'dsn'      => ''
    ];
 
+   /**
+    * @type  bool
+    * @since v0.1.2
+    */
+   private $parseQueryVarsAlways = false;
+
    # </editor-fold>
 
    
@@ -534,6 +540,41 @@ class Connection extends \PDO
       $sql = "SELECT COUNT(*) AS cnt FROM {$table}" . $this->formatWhere( $where );
 
       return \intval( $this->fetchScalar( $sql, $bindings, 0 ) );
+
+   }
+
+   /**
+    * Gets if each executed SQL statement should be parsed for the usage of Query-Params. Otherwise
+    * it will only be parsed if some query param replacements are defined while running the executing methods.
+    *
+    * For performance issues set it to true if required and reset it to false if not required!
+    *
+    * @return bool
+    * @since  v0.1.2
+    */
+   public final function getParseQueryVarsAlways() : bool
+   {
+
+      return $this->parseQueryVarsAlways;
+
+   }
+
+   /**
+    * sets if each executed SQL statement should be parsed for the usage of Query-Params. Otherwise
+    * it will only be parsed if some query param replacements are defined while running the executing methods.
+    *
+    * For performance issues set it to true if required and reset it to false if not required!
+    *
+    * @param  bool $value
+    * @return \UK\DB\Connection
+    * @since  v0.1.2
+    */
+   public final function setParseQueryVarsAlways( bool $value ) : Connection
+   {
+
+      $this->parseQueryVarsAlways = $value;
+
+      return $this;
 
    }
 
