@@ -67,15 +67,15 @@ If no default value should be used the equal sign is mandatory but it throws an 
 if no replacement value is declared!
 
 ```
-%PlaceholderName=DefaultValue%
+{$PlaceholderName=DefaultValue}
 ```
 
 or 2 variants without an default value
 
 ```
-%PlaceholderName=%
+{$PlaceholderName=}
 
-%PlaceholderName%
+{$PlaceholderName}
 ```
 
 ##### Value format restrictions
